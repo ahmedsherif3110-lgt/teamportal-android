@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -17,7 +20,6 @@ jobs:
       - name: Extract Android project
         run: |
           unzip -o teamportal-android-web-wrapper-v1.zip -d extracted
-          find extracted -maxdepth 3 -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \)
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -42,16 +44,24 @@ jobs:
       - name: Find Android project
         run: |
           PROJECT_DIR=$(dirname "$(find extracted -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -n 1)")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-          echo "Android project found at: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: teamportal-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+      - name: Find APK
+        run: |
+          APK=$(find "$PROJECT_DIR" -type f -name "*.apk" | head -n 1)
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          cp "$APK" teamportal.apk
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ github.run_number }}" \
+            teamportal.apk \
+            --title "TeamPortal Android v${{ github.run_number }}" \
+            --notes "TeamPortal Android APK"
