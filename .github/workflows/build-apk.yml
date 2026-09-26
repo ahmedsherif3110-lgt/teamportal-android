@@ -50,27 +50,6 @@ jobs:
           echo "Android project: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Find Firebase configuration
-        run: |
-          echo "Searching for google-services.json..."
-
-          FIREBASE_FILE=$(find extracted -type f -name "google-services.json" | head -n 1)
-
-          if [ -z "$FIREBASE_FILE" ]; then
-            echo "ERROR: google-services.json was not found."
-            echo "Files inside extracted project:"
-            find extracted -maxdepth 5 -type f | sort
-            exit 1
-          fi
-
-          echo "Firebase file found:"
-          echo "$FIREBASE_FILE"
-
-          cp "$FIREBASE_FILE" "$PROJECT_DIR/app/google-services.json"
-
-          echo "Firebase configuration copied successfully."
-          ls -lh "$PROJECT_DIR/app/google-services.json"
-
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
@@ -84,6 +63,8 @@ jobs:
 
           if [ -z "$APK" ]; then
             echo "ERROR: APK was not found."
+            echo "Build folders:"
+            find "$PROJECT_DIR" -type d -name build -print
             exit 1
           fi
 
