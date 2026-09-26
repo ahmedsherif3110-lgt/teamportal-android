@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Extract Android project
         run: |
           unzip -o teamportal-android-web-wrapper-v1.zip -d extracted
 
@@ -29,7 +29,7 @@ jobs:
         with:
           packages: 'platform-tools'
 
-      - name: Install SDK
+      - name: Install Android SDK packages
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
@@ -38,9 +38,16 @@ jobs:
         with:
           gradle-version: '8.10'
 
-      - name: Find project
+      - name: Find Android project
         run: |
           PROJECT_DIR=$(dirname "$(find extracted -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -n 1)")
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Android project not found."
+            exit 1
+          fi
+
+          echo "Android project: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Build APK
@@ -48,9 +55,30 @@ jobs:
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleDebug
 
+      - name: Find APK
+        run: |
+          echo "Searching for APK..."
+
+          APK=$(find "$PROJECT_DIR" -type f -name "*.apk" | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not found."
+            echo "Build folders:"
+            find "$PROJECT_DIR" -type d -name build -print
+            exit 1
+          fi
+
+          echo "APK found:"
+          echo "$APK"
+
+          cp "$APK" "$GITHUB_WORKSPACE/teamportal.apk"
+
+          ls -lh "$GITHUB_WORKSPACE/teamportal.apk"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: teamportal-apk
-          path: "${{ env.PROJECT_DIR }}/**/build/outputs/apk/debug/*.apk"
+          path: teamportal.apk
+          if-no-files-found: error
           retention-days: 7
